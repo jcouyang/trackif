@@ -6,7 +6,7 @@
   (testing "query price not a number"
     (is (= 0 (query-price "https://github.com/jcouyang" [:.vcard-fullname]))))
   (testing "query price is 189.00"
-    (is (= 189.0 (query-price "file:///Users/twer/Development/trackif/test/trackif/fixture.html" [:.priceLarge.kitsunePrice])))))
+    (is (= 189.0 (query-price (str "file://" (-> (java.io.File. "test/trackif") .getAbsolutePath) "/fixture.html") [:.priceLarge.kitsunePrice])))))
 
 (deftest price-drop-test
   (testing "price drop"
