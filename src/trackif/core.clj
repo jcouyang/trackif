@@ -17,8 +17,14 @@
   [url]
   [4 2 3 4 3])
 
-(defn price-drop [url selector]
-  (< (query-price url selector) (first (history-price url))))
+(defn save-price [url price]
+  "saved")
+
+(defn price-drop [url current-price]
+  (let [history-price (first (history-price url))]
+    (if-not (= current-price history-price)
+      (save-price url current-price))
+    (< current-price history-price)))
 
 (defn notify
   "notify user about price drop"
@@ -34,5 +40,6 @@
     :urls "amazon.com"}])
 
 (defn notify-when-price-drop [url selector]
-  (if (price-drop url selector)
-    (map notify (users-of url))))
+  (let [current-price (query-price url selector)]
+    (if (price-drop url current-price)
+      (map notify (users-of url)))))

@@ -10,11 +10,11 @@
 
 (deftest price-drop-test
   (testing "price drop"
-    (with-redefs [query-price (fn [url selector] 3)]
-      (is (price-drop "" [])))))
+      (is (price-drop "" 0))))
 
 
 (deftest notify-test
   (testing "notify user if price drop"
-    (with-redefs [price-drop (fn [url selector] true)]
+    (with-redefs [price-drop (fn [url selector] true)
+                  query-price (fn [url selector] 2)]
       (is (= '("emailing ouyang") (notify-when-price-drop "" []))))))
