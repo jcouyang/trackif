@@ -89,5 +89,5 @@
   (loop []
     (doseq [url (all-urls)]
       (>!! c url))
-    (<!! (timeout 10000))
+    (<!! (timeout 3600000))
     (recur)))
