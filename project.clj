@@ -8,7 +8,7 @@
                  [enlive "1.1.5"]
                  [environ "1.0.0"]
                  [clj-http "1.1.0"]
-                 [http-kit.fake "0.2.1"]]
+                 [org.clojure/tools.logging "0.3.1"]]
   :main ^:skip-aot trackif.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

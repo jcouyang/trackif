@@ -5,12 +5,12 @@
              :refer [>! >!! <! <!! go chan go-loop timeout]]
             [environ.core :refer [env]]
             [clj-http.client :as http])
+  (:use [clojure.tools.logging :only (info error)])
   (:gen-class))
 
 (import [java.net URLEncoder])
 
 (def options {:content-type :json
-              :headers {:User-Agent "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:37.0) Gecko/20100101 Firefox/37.0"}
               :accept :json
               :as :json
               :basic-auth [(env :ti-api-key) (env :ti-password)]
@@ -19,16 +19,17 @@
   ([method key data]
    (let [{:keys [status headers body error] :as resp} (method (str "https://api.orchestrate.io/v0/" key) (merge options {:form-params data}))]
      (if error
-       (println "orch request fail with execption" error)
+       (info "orch request fail with execption" error)
        (:results body))))
   ([method key]
    (let [{:keys [status headers body error] :as resp} (method (str "https://api.orchestrate.io/v0/" key) options)]
      (if error
-       (println "orch request fail with execption" error)
+       (info "orch request fail with execption" error)
        (:results body)))))
 
 (defn fetch-url [url]
-  (html/html-resource (java.net.URL. url)))
+  (html/html-resource (:body (http/get url {:as :stream
+                                            :client-params {"http.useragent" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:37.0) Gecko/20100101 Firefox/37.0"}}))))
 
 (defn query-price
   "query price from website via selector"
@@ -48,7 +49,7 @@
   (map #(:value %) (orch http/get "item")))
 
 (defn save-price [url price]
-  (println "saving " url " with price " price)
+  (info "saving " url " with price " price)
   (orch http/patch (str "item/" (URLEncoder/encode url)) [{:op "replace" :path "price" :value price}]))
 
 (defn users-of
@@ -65,13 +66,13 @@
 (defn notify
   "notify user about price drop"
   [who what]
-  (println (str "emailing" (:name who) what))
+  (info (str "emailing" (:name who) what))
   (str "emailing " (:name who) what))
 
 
 (defn notify-when-price-drop [{url :url selector :selector}]
   (let [current-price (query-price url selector)]
-    (println "find price of " url ": " current-price)
+    (info "find price of " url ": " current-price)
     (if (price-drop url current-price)
       (doseq [url (users-of url)]
         (notify url current-price)))))
@@ -83,7 +84,7 @@
     (let [url (<! c)]
       (try
         (notify-when-price-drop url)
-        (catch Exception e (str "exception:" (.getMessage e)))))
+        (catch Exception e ( error e "exception"))))
     (recur))
   (loop []
     (doseq [url (all-urls)]
