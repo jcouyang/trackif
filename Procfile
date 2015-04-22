@@ -1,1 +1,1 @@
-worker: lein run
+web: lein run

@@ -4,11 +4,27 @@
              :as a
              :refer [>! >!! <! <!! go chan go-loop timeout]]
             [environ.core :refer [env]]
+            [ring.adapter.jetty :as jetty]
+            [compojure.core :refer [defroutes GET PUT POST DELETE ANY]]
+            [compojure.handler :refer [site]]
+            [compojure.route :as route]
+            [clojure.java.io :as io]
             [clj-http.client :as http])
   (:use [clojure.tools.logging :only (info error)])
   (:gen-class))
 
 (import [java.net URLEncoder])
+
+(defn splash []
+  {:status 200
+   :headers {"Content-Type" "text/plain"}
+   :body (pr-str ["Hello" :from 'Heroku])})
+
+(defroutes app
+  (GET "/" []
+       (splash))
+  (ANY "*" []
+       (route/not-found (slurp (io/resource "404.html")))))
 
 (def options {:content-type :json
               :accept :json
@@ -86,8 +102,10 @@
         (notify-when-price-drop url)
         (catch Exception e ( error e "exception"))))
     (recur))
-  (loop []
+  (go-loop []
     (doseq [url (all-urls)]
-      (>!! c url))
-    (<!! (timeout 3600000))
-    (recur)))
+      (>! c url))
+    (<! (timeout 3600000))
+    (recur))
+  (let [port (Integer. (or (env :port) 5000))]
+    (jetty/run-jetty (site #'app) {:port port :join? false})))

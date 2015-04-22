@@ -8,6 +8,8 @@
                  [enlive "1.1.5"]
                  [environ "1.0.0"]
                  [clj-http "1.1.0"]
+                 [compojure "1.1.8"]
+                 [ring/ring-jetty-adapter "1.2.2"]
                  [org.clojure/tools.logging "0.3.1"]]
   :main ^:skip-aot trackif.core
   :target-path "target/%s"
