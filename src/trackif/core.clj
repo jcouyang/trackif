@@ -6,25 +6,23 @@
             [environ.core :refer [env]]
             [ring.adapter.jetty :as jetty]
             [compojure.core :refer [defroutes GET PUT POST DELETE ANY]]
-            [compojure.handler :refer [site]]
+            [compojure.handler :refer [api]]
             [compojure.route :as route]
-            [clojure.java.io :as io]
             [clj-http.client :as http])
-  (:use [clojure.tools.logging :only (info error)])
+  (:use [clojure.tools.logging :only (info error)]
+        [liberator.core :only [defresource]])
   (:gen-class))
 
 (import [java.net URLEncoder])
 
-(defn splash []
-  {:status 200
-   :headers {"Content-Type" "text/plain"}
-   :body (pr-str ["Hello" :from 'Heroku])})
+(defresource hello-resource
+  :available-media-types ["text/plain"]
+  :allowed-methods [:get]
+  :handle-ok (fn [_] "My the lambda be with you!"))
 
 (defroutes app
   (GET "/" []
-       (splash))
-  (ANY "*" []
-       (route/not-found (slurp (io/resource "404.html")))))
+       hello-resource))
 
 (def options {:content-type :json
               :accept :json
@@ -105,7 +103,7 @@
   (go-loop []
     (doseq [url (all-urls)]
       (>! c url))
-    (<! (timeout 3600000))
+    (<! (timeout 10000))
     (recur))
   (let [port (Integer. (or (env :port) 5000))]
-    (jetty/run-jetty (site #'app) {:port port :join? false})))
+    (jetty/run-jetty (api #'app) {:port port :join? false})))
