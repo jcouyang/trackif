@@ -113,9 +113,9 @@
    :handle-not-found (fn [_] "Ops. May the lambda be with you!")
    :authorized? authenticated?})
 
-(defresource hello-resource auth-res
+(defresource hello-resource
   :allowed-methods [:get]
-  :handle-ok (fn [_] {:may "the lambda be with you"}))
+  :handle-ok (fn [_] "May the lambda be with you!"))
 
 (defresource subscribe-res auth-res
   :allowed-methods [:get]
@@ -148,7 +148,7 @@
   (go-loop []
     (doseq [url (all-urls)]
       (>! c url))
-    (<! (timeout 3600000))
+    (<! (timeout (or (env :period) 10000)))
     (recur))
   (let [port (Integer. (or (env :port) 5000))]
     (jetty/run-jetty (-> app api) {:port port :join? false})))
