@@ -4,6 +4,7 @@
              :as a
              :refer [>! >!! <! <!! go chan go-loop timeout]]
             [environ.core :refer [env]]
+            [sendgrid-clj.core :refer [send-email]]
             [ring.adapter.jetty :as jetty]
             [compojure.core :refer [defroutes GET PUT POST DELETE ANY]]
             [compojure.handler :refer [api]]
@@ -22,6 +23,9 @@
               :as :json
               :basic-auth [(env :ti-api-key) (env :ti-password)]
               })
+(def sendgrid-auth {
+                    :api_key (env :sendgrid-key)
+                    :api_user (env :sendgrid-user)})
 (defn orch
   ([method key data]
    (let [{:keys [status headers body err] :as resp} (method (str "https://api.orchestrate.io/v0/" key) (merge options {:form-params data}))]
@@ -79,7 +83,13 @@
   "notify user about price drop"
   [who what]
   (info (str "emailing" (:name who) what))
-  (str "emailing " (:name who) what))
+  (send-email sendgrid-auth
+              {
+               :text what
+               :to who
+               :from "jichao@oyanglul.us"
+               :subject what
+               }))
 
 
 (defn notify-when-price-drop [{url :url selector :selector}]
@@ -104,8 +114,7 @@
   :allowed-methods [:get]
   :handle-ok (fn [_] {:may "the lambda be with you"}))
 
-(defresource subscribe-res [user] auth-res
-  :available-media-types ["application/json"]
+(defresource subscribe-res auth-res
   :allowed-methods [:get]
   :exists? (fn [ctx]
              (if-let [urls (subs-of (get-in ctx [:request :params :user]))]
@@ -113,8 +122,18 @@
   :handle-ok (fn [ctx]
                (get ctx :urls)))
 
+(defresource item-res [url] auth-res
+  :allowed-methods [:get :post :put]
+  :exists? (fn [ctx]
+             (if-let [item (orch http/get (str "item/" url))]
+               (:item item)))
+  :handle-ok (fn [ctx] (get ctx :item))
+  :put! (fn [ctx] (orch http/put (str "item/" url) (get-in ctx [:request :body]))))
+
 (defroutes app
-  (GET "/:user/subscribe" [user] subscribe-res))
+  (GET "/" hello-resource)
+  (GET "/subscribe" subscribe-res)
+  (GET "/item/:url" item-res))
 
 (defn -main [& args]
   (go-loop []

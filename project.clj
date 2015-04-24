@@ -12,6 +12,7 @@
                  [org.mindrot/jbcrypt "0.3m"]
                  [clj-http "1.1.0"]
                  [compojure "1.1.8"]
+                 [io.forward/sendgrid-clj "1.0"]
                  [ring/ring-jetty-adapter "1.2.2"]
                  [org.clojure/tools.logging "0.3.1"]]
   :main ^:skip-aot trackif.core
