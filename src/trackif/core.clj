@@ -8,21 +8,14 @@
             [compojure.core :refer [defroutes GET PUT POST DELETE ANY]]
             [compojure.handler :refer [api]]
             [compojure.route :as route]
+            [ring.middleware.basic-authentication :refer [wrap-basic-authentication]]
             [clj-http.client :as http])
   (:use [clojure.tools.logging :only (info error)]
         [liberator.core :only [defresource]])
+  (:import org.mindrot.jbcrypt.BCrypt)
   (:gen-class))
 
 (import [java.net URLEncoder])
-
-(defresource hello-resource
-  :available-media-types ["text/plain"]
-  :allowed-methods [:get]
-  :handle-ok (fn [_] "My the lambda be with you!"))
-
-(defroutes app
-  (GET "/" []
-       hello-resource))
 
 (def options {:content-type :json
               :accept :json
@@ -31,15 +24,15 @@
               })
 (defn orch
   ([method key data]
-   (let [{:keys [status headers body error] :as resp} (method (str "https://api.orchestrate.io/v0/" key) (merge options {:form-params data}))]
-     (if error
-       (info "orch request fail with execption" error)
-       (:results body))))
+   (let [{:keys [status headers body err] :as resp} (method (str "https://api.orchestrate.io/v0/" key) (merge options {:form-params data}))]
+     (if err
+       (error "orch request fail with execption" err)
+       body)))
   ([method key]
-   (let [{:keys [status headers body error] :as resp} (method (str "https://api.orchestrate.io/v0/" key) options)]
-     (if error
-       (info "orch request fail with execption" error)
-       (:results body)))))
+   (let [{:keys [status headers body err] :as resp} (method (str "https://api.orchestrate.io/v0/" key) options)]
+     (if err
+       (error "orch request fail with execption" err)
+       body))))
 
 (defn fetch-url [url]
   (html/html-resource (:body (http/get url {:as :stream
@@ -57,10 +50,10 @@
   [url]
   (map #(hash-map :price (get-in % [:value :price])
                   :time (:reftime %))
-       (orch http/get (str "item/" (URLEncoder/encode url) "/refs/?values=true"))))
+       (:results (orch http/get (str "item/" (URLEncoder/encode url) "/refs/?values=true")))))
 
 (defn all-urls []
-  (map #(:value %) (orch http/get "item")))
+  (map #(:value %) (:results (orch http/get "item"))))
 
 (defn save-price [url price]
   (info "saving " url " with price " price)
@@ -69,7 +62,12 @@
 (defn users-of
   "search users via url"
   [url]
-  (map #(get-in % [:value :email]) (orch http/get (str "item/" (URLEncoder/encode "https://github.com/jcouyang") "/relations/subs"))))
+  (map #(get-in % [:value :email])
+       (:results (orch http/get (str "item/" (URLEncoder/encode url) "/relations/subsby")))))
+
+(defn subs-of [user]
+  (map #(get % :value)
+       (:results (orch http/get (str "user/" (URLEncoder/encode user) "/relations/subs")))))
 
 (defn price-drop [url current-price]
   (when-let [{old-price :price} (first (history-price url))]
@@ -93,6 +91,31 @@
 
 (def c (chan))
 
+(defn authenticated? [ctx]
+  (when-let [user (orch http/get (str "user/" (get-in ctx [:request :params :user])))]
+    (BCrypt/checkpw (get-in ctx [:request :headers "authorization"]) (:token user))))
+
+(def auth-res
+  {:available-media-types ["application/json"]
+   :handle-not-found (fn [_] "Ops. May the lambda be with you!")
+   :authorized? authenticated?})
+
+(defresource hello-resource auth-res
+  :allowed-methods [:get]
+  :handle-ok (fn [_] {:may "the lambda be with you"}))
+
+(defresource subscribe-res [user] auth-res
+  :available-media-types ["application/json"]
+  :allowed-methods [:get]
+  :exists? (fn [ctx]
+             (if-let [urls (subs-of (get-in ctx [:request :params :user]))]
+               {:urls urls}))
+  :handle-ok (fn [ctx]
+               (get ctx :urls)))
+
+(defroutes app
+  (GET "/:user/subscribe" [user] subscribe-res))
+
 (defn -main [& args]
   (go-loop []
     (let [url (<! c)]
@@ -103,7 +126,7 @@
   (go-loop []
     (doseq [url (all-urls)]
       (>! c url))
-    (<! (timeout 10000))
+    (<! (timeout 3600000))
     (recur))
   (let [port (Integer. (or (env :port) 5000))]
-    (jetty/run-jetty (api #'app) {:port port :join? false})))
+    (jetty/run-jetty (-> app api) {:port port :join? false})))

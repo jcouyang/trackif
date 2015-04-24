@@ -8,6 +8,8 @@
                  [enlive "1.1.5"]
                  [environ "1.0.0"]
                  [liberator "0.12.2"]
+                 [ring-basic-authentication "1.0.5"]
+                 [org.mindrot/jbcrypt "0.3m"]
                  [clj-http "1.1.0"]
                  [compojure "1.1.8"]
                  [ring/ring-jetty-adapter "1.2.2"]
