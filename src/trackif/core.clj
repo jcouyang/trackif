@@ -105,8 +105,9 @@
 (def c (chan))
 
 (defn authenticated? [ctx]
-  (when-let [user (orch http/get (str "user/" (get-in ctx [:request :params :user])))]
-    (BCrypt/checkpw (get-in ctx [:request :headers "authorization"]) (:token user))))
+  (when-let [token (get-in ctx [:request :headers "authorization"])]
+    (when-let [{hash-token :token} (orch http/get (str "user/" (get-in ctx [:request :params :user])))]
+      (BCrypt/checkpw token hash-token))))
 
 (def auth-res
   {:available-media-types ["application/json"]
@@ -114,6 +115,7 @@
    :authorized? authenticated?})
 
 (defresource hello-resource
+  :available-media-types ["text/plain"]
   :allowed-methods [:get]
   :handle-ok (fn [_] "May the lambda be with you!"))
 
@@ -134,9 +136,9 @@
   :put! (fn [ctx] (orch http/put (str "item/" url) (get-in ctx [:request :body]))))
 
 (defroutes app
-  (GET "/" hello-resource)
-  (GET "/subscribe" subscribe-res)
-  (GET "/item/:url" item-res))
+  (GET "/" [] hello-resource)
+  (GET "/subscribe" [] subscribe-res)
+  (GET "/item/:url" [url] item-res))
 
 (defn -main [& args]
   (go-loop []
