@@ -26,14 +26,17 @@
 (def sendgrid-auth {
                     :api_key (env :sendgrid-key)
                     :api_user (env :sendgrid-user)})
+
+(def orch-api "https://api.orchestrate.io/v0/")
+
 (defn orch
   ([method key data]
-   (let [{:keys [status headers body err] :as resp} (method (str "https://api.orchestrate.io/v0/" key) (merge options {:form-params data}))]
+   (let [{:keys [status headers body err] :as resp} (method (str orch-api key) (merge options {:form-params data}))]
      (if err
        (error "orch request fail with execption" err)
        body)))
   ([method key]
-   (let [{:keys [status headers body err] :as resp} (method (str "https://api.orchestrate.io/v0/" key) options)]
+   (let [{:keys [status headers body err] :as resp} (method (str orch-api key) options)]
      (if err
        (error "orch request fail with execption" err)
        body))))
